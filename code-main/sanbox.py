@@ -2,10 +2,10 @@ import cv2
 import numpy as np
 import face_recognition
 
-img_pung = face_recognition.load_image_file('image/pung3.jpg')
+img_pung = face_recognition.load_image_file('../image/pung3.jpg')
 img_pung = cv2.cvtColor(img_pung, cv2.COLOR_BGR2RGB)
 
-img_pung_test = face_recognition.load_image_file('image/pung2.jpg')
+img_pung_test = face_recognition.load_image_file('../image/pung1.jpg')
 img_pung_test = cv2.cvtColor(img_pung_test, cv2.COLOR_BGR2RGB)
 
 face_loc = face_recognition.face_locations(img_pung)[0] # return coord of face
