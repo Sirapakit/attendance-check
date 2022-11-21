@@ -1,0 +1,4 @@
+How to activate venv?
+    - source myEnv/bin/activate 
+
+pip freeze > requirement.txt
