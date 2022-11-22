@@ -1,19 +1,19 @@
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+# from googleapiclient.discovery import build
+# from google.oauth2 import service_account
 import datetime
 
-SERVICE_ACCOUNT_FILE = 'key.json'
+# SERVICE_ACCOUNT_FILE = 'key.json'
 # SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-creds = None
-creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+# creds = None
+# creds = service_account.Credentials.from_service_account_file(
+#         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
-SAMPLE_SPREADSHEET_ID = '1jnApnXnB3yq4qSX_VkjU04jykh_Aj4ggDTJHMhqsYyY'
-service = build('sheets', 'v4', credentials=creds)
+# SAMPLE_SPREADSHEET_ID = '1jnApnXnB3yq4qSX_VkjU04jykh_Aj4ggDTJHMhqsYyY'
+# service = build('sheets', 'v4', credentials=creds)
 
-sheet = service.spreadsheets()
-sheet_id = 0
+# sheet = service.spreadsheets()
+# sheet_id = 0
 
 head = [["Name","ID","Time"]]
 
