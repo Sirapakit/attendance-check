@@ -3,7 +3,7 @@ from google.oauth2 import service_account
 import datetime
 
 SERVICE_ACCOUNT_FILE = 'key.json'
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+# SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 creds = None
 creds = service_account.Credentials.from_service_account_file(
