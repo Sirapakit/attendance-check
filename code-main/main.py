@@ -6,6 +6,7 @@ from datetime import datetime as datetime
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import datetime
+import json
 
 path = r'../image'
 images = []    
@@ -19,6 +20,15 @@ for x,image_name in enumerate(my_list):
     class_name.append(os.path.splitext(image_name)[0])
 
 print(f'Student in classes are {class_name}')
+
+
+def get_student_id_from_json(name):
+    f = open('student_id.json')
+    data = json.load(f)
+    return data[name]
+
+student_id = get_student_id_from_json('pung')
+print(f'Hi, {student_id}')
 
 def register_new_student():
     name = input('name: ')
@@ -52,7 +62,7 @@ def find_encodings(images):
     return encode_list
 
 encode_list_registered_faces = find_encodings(images)
-print(encode_list_registered_faces)
+# print(encode_list_registered_faces)
 print('Encodings Complete!')
 
 def check_attendance(name):
@@ -104,7 +114,6 @@ def check_attendance(name):
     ]
     }
 
-
     request = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A1", valueInputOption="USER_ENTERED", body={"values":head}).execute()
     respond = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_body_head).execute()
 
@@ -112,7 +121,10 @@ def check_attendance(name):
     ontime = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
     # test = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
     checkin_str = checkin.strftime("%H:%M:%S")
-    name = [[name,"6213424",checkin_str]]
+
+    student_id = get_student_id_from_json(name)
+ 
+    name = [[name, student_id, checkin_str]]
 
     append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2", valueInputOption="USER_ENTERED", 
                 insertDataOption="INSERT_ROWS",responseDateTimeRenderOption="FORMATTED_STRING", body={"values":name}).execute()
@@ -217,8 +229,8 @@ while True:
         face_distance = face_recognition.face_distance(encode_list_registered_faces, encode_face)
         match_faces = np.argmin(face_distance)
 
-        if matches[match_faces]:
-            student_name = class_name[match_faces].upper()
+        if matches[match_faces]: # Detect faces
+            student_name = class_name[match_faces]
             y1,x2,y2,x1 = face_location
             y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
