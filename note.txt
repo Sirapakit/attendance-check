@@ -2,3 +2,6 @@ How to activate venv?
     - source myEnv/bin/activate 
 
 pip freeze > requirement.txt
+
+if have DS Store
+    - find . -name ".DS_Store" -delete
