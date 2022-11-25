@@ -23,9 +23,12 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from typing import List
 import time
+import json
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
+    current_status = pyqtSignal(bool)
+    student_name_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -60,8 +63,9 @@ class VideoThread(QThread):
         cap = cv2.VideoCapture(0)
         while True:
             ret, img = cap.read()
+            status = False
+            global name
             img_from_webcam = cv2.resize(img, (0, 0), None, fx = 0.25, fy = 0.25)
-            # img_from_webcam = cv2.resize(img, (300, 300))
 
             img_from_webcam = cv2.cvtColor(img_from_webcam, cv2.COLOR_BGR2RGB)
 
@@ -74,21 +78,46 @@ class VideoThread(QThread):
                 match_faces = np.argmin(face_distance)
 
                 if matches[match_faces]:
-                    student_name = class_name[match_faces].upper()
+                    name = class_name[match_faces]
                     y1,x2,y2,x1 = face_location
                     y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
                     cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.rectangle(img, (x1, y2 - 35), (x2, y2), (0, 255, 0), cv2.FILLED)
-                    cv2.putText(img, student_name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)  
-
+                    cv2.putText(img, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2) 
+                    status = True
+            
             if ret:
                 self.change_pixmap_signal.emit(img)
+                self.current_status.emit(status)
+                self.student_name_signal.emit(name)
 
     def stop(self):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self.wait()
 
+class CaptureThread(QThread):
+    capture_image = pyqtSignal(np.ndarray)
+
+    def __init__(self):
+        super().__init__()
+        self._run_flag = True
+
+    def run(self):
+        camera = cv2.VideoCapture(0)
+        while True:
+            ret, frame = camera.read()
+            frame = cv2.flip(frame,1)
+            font = cv2.FONT_HERSHEY_TRIPLEX
+            cv2.putText(frame, 'Front Face', (50, 50), font, 1, (255, 255, 255), 2, cv2.LINE_4)
+
+            if ret:
+                self.capture_image.emit(frame)
+    
+    def stop(self):
+        """Sets run flag to False and waits for thread to finish"""
+        self._run_flag = False
+        self.wait()
 
 class Window(QMainWindow):
     def __init__(self, parent=None):
@@ -101,7 +130,7 @@ class Window(QMainWindow):
  
         page1 = HomeWindow(self)
         page1.login_btn.clicked.connect(self.check_window)
-        # page1.signup_btn.clicked.connect(self.register_window)
+        page1.signup_btn.clicked.connect(self.register_window)
         self.central_widget.addWidget(page1)        
  
         self.setGeometry(300, 100, 970, 670)
@@ -115,10 +144,10 @@ class Window(QMainWindow):
         self.central_widget.addWidget(page_check_window)
         self.central_widget.setCurrentWidget(page_check_window)
     
-    # def register_window(self):
-    #     page_rt = Register_page(self)
-    #     self.central_widget.addWidget(page_rt)
-    #     self.central_widget.setCurrentWidget(page_rt)
+    def register_window(self):
+        page_rt = Register_page(self)
+        self.central_widget.addWidget(page_rt)
+        self.central_widget.setCurrentWidget(page_rt)
  
 class HomeWindow(QWidget):
     def __init__(self, parent=None):
@@ -174,13 +203,170 @@ class Check_page(QMainWindow):
         self.setCentralWidget(self.central_widget)
  
         page2 = CheckWindow(self)
-        # page2.back_btn.clicked.connect(self.back_homewindow)
+        # page2.enter_btn.clicked.connect(self.check_attendance)
+        page2.back_btn.clicked.connect(self.back_homewindow)
         self.central_widget.addWidget(page2)
-    
-    # def back_homewindow(self):
-    #     page_hw = Window(self)
-    #     self.central_widget.addWidget(page_hw)
-    #     self.central_widget.setCurrentIndex(self.central_widget.currentIndex()+1)
+
+    # def check_attendance(self, student_name):
+
+    #     def get_student_id_from_json(name):
+    #         f = open('student_id.json')
+    #         data = json.load(f)
+    #         return data[name]
+
+    #     SERVICE_ACCOUNT_FILE = 'key.json'
+    #     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+    #     creds = None
+    #     creds = service_account.Credentials.from_service_account_file(
+    #             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+    #     SAMPLE_SPREADSHEET_ID = '1jnApnXnB3yq4qSX_VkjU04jykh_Aj4ggDTJHMhqsYyY'
+    #     service = build('sheets', 'v4', credentials=creds)
+    #     sheet = service.spreadsheets()
+    #     sheet_id = 0
+    #     head = [["Name","ID","Time"]]
+
+    #     request_body_head =  \
+    #     {
+    #     "requests": [
+    #         {
+    #         "repeatCell": {
+    #             "range": {
+    #             "sheetId": sheet_id,
+    #             "startRowIndex": 0,
+    #             "endRowIndex": 1
+    #             },
+    #             "cell": {
+    #             "userEnteredFormat": {
+    #                 "backgroundColor": {
+    #                 "red": 1.0,
+    #                 "green": 1.0,
+    #                 "blue": 1.0
+    #                 },
+    #                 "horizontalAlignment" : "CENTER",
+    #                 "textFormat": {
+    #                 "foregroundColor": {
+    #                     "red": 0.0,
+    #                     "green": 0.0,
+    #                     "blue": 0.0
+    #                 },
+    #                 "fontSize": 10,
+    #                 "bold": True
+    #                 }
+    #             }
+    #             },
+    #             "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+    #         }
+    #         }
+    #     ]
+    #     }
+
+
+    #     request = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A1", valueInputOption="USER_ENTERED", body={"values":head}).execute()
+    #     respond = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_body_head).execute()
+
+    #     checkin = datetime.datetime.now()
+    #     ontime = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
+    #     # test = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
+    #     checkin_str = checkin.strftime("%H:%M:%S")
+
+    #     student_id = get_student_id_from_json(student_name)
+    #     name = [[student_name,student_id,checkin_str]]
+
+    #     append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2", valueInputOption="USER_ENTERED", 
+    #                 insertDataOption="INSERT_ROWS",responseDateTimeRenderOption="FORMATTED_STRING", body={"values":name}).execute()
+    #     if checkin - ontime > datetime.timedelta(minutes = 15): # 15 mins
+    #         row = 1
+    #         last_row = 2
+    #         respond_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
+    #         row += len(respond_last_row['values']) - 1
+    #         last_row += len(respond_last_row['values']) - 1
+
+    #         request_late =  \
+    #             {
+    #             "requests": [
+    #                 {
+    #                 "repeatCell": {
+    #                     "range": {
+    #                 "sheetId": sheet_id,
+    #                 "startRowIndex": row,
+    #                 "endRowIndex": last_row
+    #                 },
+    #                     "cell": {
+    #                     "userEnteredFormat": {
+    #                         "backgroundColor": {
+    #                         "red": 1.0,
+    #                         "green": 1.0,
+    #                         "blue": 1.0
+    #                         },
+    #                         "horizontalAlignment" : "CENTER",
+    #                         "textFormat": {
+    #                         "foregroundColor": {
+    #                             "red": 1.0,
+    #                             "green": 0.0,
+    #                             "blue": 0.0
+    #                         },
+    #                         "fontSize": 10,
+    #                         "bold": False
+    #                         }
+    #                     }
+    #                     },
+    #                     "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+    #                 }
+    #                 }
+    #             ]
+    #             }
+    #         respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_late).execute()
+
+    #     else:
+    #         row = 1
+    #         last_row = 2
+    #         find_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
+    #         row += len(find_last_row['values']) - 1
+    #         last_row += len(find_last_row['values']) - 1
+
+    #         request_ontime =  \
+    #             {
+    #             "requests": [
+    #                 {
+    #                 "repeatCell": {
+    #                     "range": {
+    #                 "sheetId": sheet_id,
+    #                 "startRowIndex": row,
+    #                 "endRowIndex": last_row
+    #                 },
+    #                     "cell": {
+    #                     "userEnteredFormat": {
+    #                         "backgroundColor": {
+    #                         "red": 1.0,
+    #                         "green": 1.0,
+    #                         "blue": 1.0
+    #                         },
+    #                         "horizontalAlignment" : "CENTER",
+    #                         "textFormat": {
+    #                         "foregroundColor": {
+    #                             "red": 0.0,
+    #                             "green": 0.0,
+    #                             "blue": 0.0
+    #                         },
+    #                         "fontSize": 10,
+    #                         "bold": False
+    #                         }
+    #                     }
+    #                     },
+    #                     "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+    #                 }
+    #                 }
+    #             ]
+    #             }
+    #         respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_ontime).execute()
+    #     sys.exit()
+
+    def back_homewindow(self):
+        page_hw = Window(self)
+        self.central_widget.addWidget(page_hw)
+        self.central_widget.setCurrentIndex(self.central_widget.currentIndex()+1)
 
 class CheckWindow(QWidget):
     def __init__(self, parent=None):
@@ -196,26 +382,61 @@ class CheckWindow(QWidget):
         self.video_layout.addWidget(self.image_label)
         self.thread = VideoThread()
         self.thread.change_pixmap_signal.connect(self.update_image)
+        self.thread.current_status.connect(self.show_status)
+        self.thread.student_name_signal.connect(self.check_attendance)
         self.thread.start()
         self.video_widget = QWidget()
         self.video_widget.setLayout(self.video_layout)
 
         self.label = QLabel()
         font_time = QFont()
-        font_time.setPointSize (14)
+        font_time.setPointSize (17)
+        font_time.setBold = True
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setFont(font_time)
-        self.time_layout = QHBoxLayout()
+        self.time_layout = QVBoxLayout()
         self.time_layout.addWidget(self.label)
-        self.time_widget = QWidget()
-        self.time_widget.setLayout(self.time_layout)
+        self.right_widget = QWidget()
+        self.right_widget.setLayout(self.time_layout)
         timer = QTimer(self)
         timer.timeout.connect(self.show_time)
         timer.start(1000)
 
+        self.status = False
+        font_status = QFont()
+        font_status.setPointSize(17)
+        font_status.setBold = True
+        self.status_layout = QVBoxLayout()
+        self.status_label = QLabel('Status')
+        self.status_label.setFont(font_status)
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_show = QLabel('WAITING', self)
+        self.status_show.setFont(font_status)
+        self.status_show.setStyleSheet("background-color: black; color: white;")
+        self.status_show.setAlignment(Qt.AlignCenter)
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addWidget(self.status_show)
+        self.time_layout.addLayout(self.status_layout)
+
+        font_btn = QFont()
+        font_btn.setPointSize(14)
+        self.btn_enter = QPushButton('ENTER')
+        self.btn_enter.setFont(font_btn)
+        self.btn_enter.setStyleSheet("background-color: lightskyblue;")
+        self.btn_enter.clicked.connect(self.clicked_enter)
+        self.btn_back = QPushButton('BACK')
+        self.btn_back.setFont(font_btn)
+        self.btn_back.setStyleSheet("background-color: lightpink;")
+        self.enter_btn = self.btn_enter
+        self.back_btn = self.btn_back
+        self.buttons_layout = QVBoxLayout()
+        self.buttons_layout.addWidget(self.btn_enter)
+        self.buttons_layout.addWidget(self.btn_back)
+        self.time_layout.addLayout(self.buttons_layout)
+
         self.splitter1 = QSplitter(Qt.Horizontal)
         self.splitter1.addWidget(self.video_widget)
-        self.splitter1.addWidget(self.time_widget)
+        self.splitter1.addWidget(self.right_widget)
         self.splitter1.setStretchFactor(1, 1)
 
         self.layout = QVBoxLayout()
@@ -236,7 +457,7 @@ class CheckWindow(QWidget):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(img)
         self.image_label.setPixmap(qt_img)
-    
+
     def convert_cv_qt(self, img):
         """Convert from an opencv image to QPixmap"""
         rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -246,6 +467,276 @@ class CheckWindow(QWidget):
         p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
 
+    @pyqtSlot(bool)
+    def show_status(self, status):
+        if (status):
+            self.status = True
+            self.status_show.setText('DETECTED')
+        else:
+            self.status = False
+            self.status_show.setText('WAITING')
+    
+    def clicked_enter(self):
+        self.check_attendance()
+
+    @pyqtSlot(str)
+    def check_attendance(self, name):
+
+        def get_student_id_from_json(name):
+            f = open('student_id.json')
+            data = json.load(f)
+            return data[name]
+
+        SERVICE_ACCOUNT_FILE = 'key.json'
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+        creds = None
+        creds = service_account.Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+        SAMPLE_SPREADSHEET_ID = '1jnApnXnB3yq4qSX_VkjU04jykh_Aj4ggDTJHMhqsYyY'
+        service = build('sheets', 'v4', credentials=creds)
+        sheet = service.spreadsheets()
+        sheet_id = 0
+        head = [["Name","ID","Time"]]
+
+        request_body_head =  \
+        {
+        "requests": [
+            {
+            "repeatCell": {
+                "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": 1
+                },
+                "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": {
+                    "red": 1.0,
+                    "green": 1.0,
+                    "blue": 1.0
+                    },
+                    "horizontalAlignment" : "CENTER",
+                    "textFormat": {
+                    "foregroundColor": {
+                        "red": 0.0,
+                        "green": 0.0,
+                        "blue": 0.0
+                    },
+                    "fontSize": 10,
+                    "bold": True
+                    }
+                }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+            }
+            }
+        ]
+        }
+
+
+        request = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A1", valueInputOption="USER_ENTERED", body={"values":head}).execute()
+        respond = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_body_head).execute()
+
+        checkin = datetime.datetime.now()
+        ontime = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
+        # test = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
+        checkin_str = checkin.strftime("%H:%M:%S")
+
+        student_id = get_student_id_from_json(name)
+        name = [[name,student_id,checkin_str]]
+
+        append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2", valueInputOption="USER_ENTERED", 
+                    insertDataOption="INSERT_ROWS",responseDateTimeRenderOption="FORMATTED_STRING", body={"values":name}).execute()
+        if checkin - ontime > datetime.timedelta(minutes = 15): # 15 mins
+            row = 1
+            last_row = 2
+            respond_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
+            row += len(respond_last_row['values']) - 1
+            last_row += len(respond_last_row['values']) - 1
+
+            request_late =  \
+                {
+                "requests": [
+                    {
+                    "repeatCell": {
+                        "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": row,
+                    "endRowIndex": last_row
+                    },
+                        "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {
+                            "red": 1.0,
+                            "green": 1.0,
+                            "blue": 1.0
+                            },
+                            "horizontalAlignment" : "CENTER",
+                            "textFormat": {
+                            "foregroundColor": {
+                                "red": 1.0,
+                                "green": 0.0,
+                                "blue": 0.0
+                            },
+                            "fontSize": 10,
+                            "bold": False
+                            }
+                        }
+                        },
+                        "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                    }
+                    }
+                ]
+                }
+            respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_late).execute()
+
+        else:
+            row = 1
+            last_row = 2
+            find_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
+            row += len(find_last_row['values']) - 1
+            last_row += len(find_last_row['values']) - 1
+
+            request_ontime =  \
+                {
+                "requests": [
+                    {
+                    "repeatCell": {
+                        "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": row,
+                    "endRowIndex": last_row
+                    },
+                        "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {
+                            "red": 1.0,
+                            "green": 1.0,
+                            "blue": 1.0
+                            },
+                            "horizontalAlignment" : "CENTER",
+                            "textFormat": {
+                            "foregroundColor": {
+                                "red": 0.0,
+                                "green": 0.0,
+                                "blue": 0.0
+                            },
+                            "fontSize": 10,
+                            "bold": False
+                            }
+                        }
+                        },
+                        "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                    }
+                    }
+                ]
+                }
+            respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_ontime).execute()
+        sys.exit()
+
+class Register_page(QMainWindow):
+    def __init__(self, parent=None):
+        super(Register_page, self).__init__(parent)
+        self.UI()
+ 
+    def UI(self):
+        self.central_widget = QStackedWidget()
+        self.setCentralWidget(self.central_widget)
+ 
+        page3 = RegisterWindow(self)
+        page3.submit_btn.clicked.connect(self.back_homewindow)
+        self.central_widget.addWidget(page3)        
+      
+    def back_homewindow(self):
+        page_hw = Window(self)
+        self.central_widget.addWidget(page_hw)
+        self.central_widget.setCurrentIndex(self.central_widget.currentIndex()+1)
+
+class RegisterWindow(QWidget):
+    def __init__(self, parent=None):
+        super(RegisterWindow, self).__init__(parent)
+
+        self.image_label = QLabel(self)
+        self.disply_width = 700
+        self.display_height = 670
+        self.image_label.resize(self.disply_width, self.display_height)
+
+        self.capture = False
+        self.btn_capture = QPushButton('Capture')
+        self.btn_capture.clicked.connect(self.capture_clicked)
+
+        # create a vertical box layout and add the two labels
+        self.video_layout = QVBoxLayout()
+        self.video_layout.addWidget(self.image_label)
+        self.video_layout.addWidget(self.btn_capture)
+        self.thread = CaptureThread()
+        self.thread.capture_image.connect(self.update_image)
+        self.thread.capture_image.connect(self.register_new_student)
+        self.thread.start()
+        self.video_widget = QWidget()
+        self.video_widget.setLayout(self.video_layout)
+
+        self.right_widget = QWidget()
+        self.right_layout = QVBoxLayout()
+        self.name_layout = QHBoxLayout()
+        font_name = QFont()
+        font_name.setPointSize(14)
+        self.name_label = QLabel('Name:')
+        self.name_label.setFont(font_name)
+        self.name_textbox = QLineEdit()
+        self.name_layout.addWidget(self.name_label)
+        self.name_layout.addWidget(self.name_textbox)
+        self.right_layout.addLayout(self.name_layout)
+        self.right_widget.setLayout(self.right_layout)
+
+        self.btn_layout = QVBoxLayout()
+        font_btn = QFont()
+        font_btn.setPointSize(14)
+        self.btn_submit = QPushButton('Submit')
+        self.btn_submit.setFont(font_btn)
+        self.btn_submit.setStyleSheet("background-color: white;")
+        self.submit_btn = self.btn_submit
+        self.btn_layout.addWidget(self.btn_submit)
+        self.right_layout.addLayout(self.btn_layout)
+
+        self.splitter1 = QSplitter(Qt.Horizontal)
+        self.splitter1.addWidget(self.video_widget)
+        self.splitter1.addWidget(self.right_widget)
+        self.splitter1.setStretchFactor(1, 1)
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.splitter1)
+        self.setLayout(self.layout)
+    
+    
+    @pyqtSlot(np.ndarray)
+    def update_image(self, img):
+        """Updates the image_label with a new opencv image"""
+        qt_img = self.convert_cv_qt(img)
+        self.image_label.setPixmap(qt_img)
+    
+    def convert_cv_qt(self, img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
+    
+    def capture_clicked(self):
+        self.capture = True
+
+    def register_new_student(self, frame):
+        if self.capture:
+            filename = 'C:\\Users\\ASUS\\Desktop\\atten\\image\\' + self.name_textbox.text() + '.jpg'
+            cv2.imwrite(filename, img = frame)
+            print('completely captured image..')
+            self.capture = False
+        
+   
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     win = Window()
