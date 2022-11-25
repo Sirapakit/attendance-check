@@ -18,7 +18,7 @@ from PyQt5.QtMultimediaWidgets import *
 
 import numpy as np
 import math
-import pylsl
+# import pylsl
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from typing import List
@@ -32,7 +32,7 @@ class VideoThread(QThread):
         self._run_flag = True
 
     def run(self):
-        path = r'C:\\Users\\ASUS\\Desktop\\atten\\image'
+        path = r'../image'
         images = []    
         class_name = []    
         my_list = os.listdir(path)
