@@ -9,7 +9,6 @@ import datetime
 
 import sys
 import os
-from qtwidgets import Toggle, AnimatedToggle
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -17,24 +16,20 @@ from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 
 import numpy as np
-import math
-import pylsl
-import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
-from typing import List
-import time
 import json
+import time
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
     current_status = pyqtSignal(bool)
-    student_name_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self._run_flag = True
 
     def run(self):
+        # path = r'../image'
         path = r'C:\\Users\\ASUS\\Desktop\\atten\\image'
         images = []    
         class_name = []    
@@ -64,7 +59,6 @@ class VideoThread(QThread):
         while True:
             ret, img = cap.read()
             status = False
-            global name
             img_from_webcam = cv2.resize(img, (0, 0), None, fx = 0.25, fy = 0.25)
 
             img_from_webcam = cv2.cvtColor(img_from_webcam, cv2.COLOR_BGR2RGB)
@@ -78,19 +72,18 @@ class VideoThread(QThread):
                 match_faces = np.argmin(face_distance)
 
                 if matches[match_faces]:
-                    name = class_name[match_faces]
+                    student_name = class_name[match_faces]
                     y1,x2,y2,x1 = face_location
                     y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
                     cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.rectangle(img, (x1, y2 - 35), (x2, y2), (0, 255, 0), cv2.FILLED)
-                    cv2.putText(img, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2) 
+                    cv2.putText(img, student_name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2) 
                     status = True
-            
+
             if ret:
                 self.change_pixmap_signal.emit(img)
                 self.current_status.emit(status)
-                self.student_name_signal.emit(name)
-
+            
     def stop(self):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
@@ -203,165 +196,9 @@ class Check_page(QMainWindow):
         self.setCentralWidget(self.central_widget)
  
         page2 = CheckWindow(self)
-        # page2.enter_btn.clicked.connect(self.check_attendance)
         page2.back_btn.clicked.connect(self.back_homewindow)
         self.central_widget.addWidget(page2)
 
-    # def check_attendance(self, student_name):
-
-    #     def get_student_id_from_json(name):
-    #         f = open('student_id.json')
-    #         data = json.load(f)
-    #         return data[name]
-
-    #     SERVICE_ACCOUNT_FILE = 'key.json'
-    #     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-
-    #     creds = None
-    #     creds = service_account.Credentials.from_service_account_file(
-    #             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-
-    #     SAMPLE_SPREADSHEET_ID = '1jnApnXnB3yq4qSX_VkjU04jykh_Aj4ggDTJHMhqsYyY'
-    #     service = build('sheets', 'v4', credentials=creds)
-    #     sheet = service.spreadsheets()
-    #     sheet_id = 0
-    #     head = [["Name","ID","Time"]]
-
-    #     request_body_head =  \
-    #     {
-    #     "requests": [
-    #         {
-    #         "repeatCell": {
-    #             "range": {
-    #             "sheetId": sheet_id,
-    #             "startRowIndex": 0,
-    #             "endRowIndex": 1
-    #             },
-    #             "cell": {
-    #             "userEnteredFormat": {
-    #                 "backgroundColor": {
-    #                 "red": 1.0,
-    #                 "green": 1.0,
-    #                 "blue": 1.0
-    #                 },
-    #                 "horizontalAlignment" : "CENTER",
-    #                 "textFormat": {
-    #                 "foregroundColor": {
-    #                     "red": 0.0,
-    #                     "green": 0.0,
-    #                     "blue": 0.0
-    #                 },
-    #                 "fontSize": 10,
-    #                 "bold": True
-    #                 }
-    #             }
-    #             },
-    #             "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
-    #         }
-    #         }
-    #     ]
-    #     }
-
-
-    #     request = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A1", valueInputOption="USER_ENTERED", body={"values":head}).execute()
-    #     respond = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_body_head).execute()
-
-    #     checkin = datetime.datetime.now()
-    #     ontime = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
-    #     # test = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
-    #     checkin_str = checkin.strftime("%H:%M:%S")
-
-    #     student_id = get_student_id_from_json(student_name)
-    #     name = [[student_name,student_id,checkin_str]]
-
-    #     append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2", valueInputOption="USER_ENTERED", 
-    #                 insertDataOption="INSERT_ROWS",responseDateTimeRenderOption="FORMATTED_STRING", body={"values":name}).execute()
-    #     if checkin - ontime > datetime.timedelta(minutes = 15): # 15 mins
-    #         row = 1
-    #         last_row = 2
-    #         respond_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
-    #         row += len(respond_last_row['values']) - 1
-    #         last_row += len(respond_last_row['values']) - 1
-
-    #         request_late =  \
-    #             {
-    #             "requests": [
-    #                 {
-    #                 "repeatCell": {
-    #                     "range": {
-    #                 "sheetId": sheet_id,
-    #                 "startRowIndex": row,
-    #                 "endRowIndex": last_row
-    #                 },
-    #                     "cell": {
-    #                     "userEnteredFormat": {
-    #                         "backgroundColor": {
-    #                         "red": 1.0,
-    #                         "green": 1.0,
-    #                         "blue": 1.0
-    #                         },
-    #                         "horizontalAlignment" : "CENTER",
-    #                         "textFormat": {
-    #                         "foregroundColor": {
-    #                             "red": 1.0,
-    #                             "green": 0.0,
-    #                             "blue": 0.0
-    #                         },
-    #                         "fontSize": 10,
-    #                         "bold": False
-    #                         }
-    #                     }
-    #                     },
-    #                     "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
-    #                 }
-    #                 }
-    #             ]
-    #             }
-    #         respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_late).execute()
-
-    #     else:
-    #         row = 1
-    #         last_row = 2
-    #         find_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
-    #         row += len(find_last_row['values']) - 1
-    #         last_row += len(find_last_row['values']) - 1
-
-    #         request_ontime =  \
-    #             {
-    #             "requests": [
-    #                 {
-    #                 "repeatCell": {
-    #                     "range": {
-    #                 "sheetId": sheet_id,
-    #                 "startRowIndex": row,
-    #                 "endRowIndex": last_row
-    #                 },
-    #                     "cell": {
-    #                     "userEnteredFormat": {
-    #                         "backgroundColor": {
-    #                         "red": 1.0,
-    #                         "green": 1.0,
-    #                         "blue": 1.0
-    #                         },
-    #                         "horizontalAlignment" : "CENTER",
-    #                         "textFormat": {
-    #                         "foregroundColor": {
-    #                             "red": 0.0,
-    #                             "green": 0.0,
-    #                             "blue": 0.0
-    #                         },
-    #                         "fontSize": 10,
-    #                         "bold": False
-    #                         }
-    #                     }
-    #                     },
-    #                     "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
-    #                 }
-    #                 }
-    #             ]
-    #             }
-    #         respond_late = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body=request_ontime).execute()
-    #     sys.exit()
 
     def back_homewindow(self):
         page_hw = Window(self)
@@ -383,7 +220,7 @@ class CheckWindow(QWidget):
         self.thread = VideoThread()
         self.thread.change_pixmap_signal.connect(self.update_image)
         self.thread.current_status.connect(self.show_status)
-        self.thread.student_name_signal.connect(self.check_attendance)
+        # self.thread.student_name_signal.connect(self.check_attendance)
         self.thread.start()
         self.video_widget = QWidget()
         self.video_widget.setLayout(self.video_layout)
@@ -401,6 +238,16 @@ class CheckWindow(QWidget):
         timer = QTimer(self)
         timer.timeout.connect(self.show_time)
         timer.start(1000)
+
+        self.name_layout = QHBoxLayout()
+        font_name = QFont()
+        font_name.setPointSize(14)
+        self.name_label = QLabel('Name:')
+        self.name_label.setFont(font_name)
+        self.name_textbox = QLineEdit()
+        self.name_layout.addWidget(self.name_label)
+        self.name_layout.addWidget(self.name_textbox)
+        self.time_layout.addLayout(self.name_layout)
 
         self.status = False
         font_status = QFont()
@@ -479,8 +326,7 @@ class CheckWindow(QWidget):
     def clicked_enter(self):
         self.check_attendance()
 
-    @pyqtSlot(str)
-    def check_attendance(self, name):
+    def check_attendance(self):
 
         def get_student_id_from_json(name):
             f = open('student_id.json')
@@ -544,17 +390,18 @@ class CheckWindow(QWidget):
         # test = checkin.replace(hour=9, minute=0, second=0, microsecond=0)
         checkin_str = checkin.strftime("%H:%M:%S")
 
-        student_id = get_student_id_from_json(name)
-        name = [[name,student_id,checkin_str]]
+        student_name = self.name_textbox.text()
+        student_id = get_student_id_from_json(student_name)
+        name = [[student_name,student_id,checkin_str]]
 
-        append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2", valueInputOption="USER_ENTERED", 
+        append = sheet.values().append(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C", valueInputOption="USER_ENTERED", 
                     insertDataOption="INSERT_ROWS",responseDateTimeRenderOption="FORMATTED_STRING", body={"values":name}).execute()
         if checkin - ontime > datetime.timedelta(minutes = 15): # 15 mins
             row = 1
             last_row = 2
-            respond_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!A2:C").execute()
-            row += len(respond_last_row['values']) - 1
-            last_row += len(respond_last_row['values']) - 1
+            respond_last_row = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range="Sheet 1!C2:C").execute()
+            row += len(respond_last_row['values'])
+            last_row += len(respond_last_row['values'])
 
             request_late =  \
                 {
@@ -689,6 +536,13 @@ class RegisterWindow(QWidget):
         self.name_layout.addWidget(self.name_label)
         self.name_layout.addWidget(self.name_textbox)
         self.right_layout.addLayout(self.name_layout)
+        self.id_layout = QHBoxLayout()
+        self.id_label = QLabel('Student ID:')
+        self.id_label.setFont(font_name)
+        self.id_textbox = QLineEdit()
+        self.id_layout.addWidget(self.id_label)
+        self.id_layout.addWidget(self.id_textbox)
+        self.right_layout.addLayout(self.id_layout)
         self.right_widget.setLayout(self.right_layout)
 
         self.btn_layout = QVBoxLayout()
@@ -730,9 +584,17 @@ class RegisterWindow(QWidget):
         self.capture = True
 
     def register_new_student(self, frame):
+        def write_json(student_name, student_id, filename='student_id.json'):
+            with open(filename,'r+') as file:
+                file_data = json.load(file)
+                file_data[student_name] = student_id
+                file.seek(0)
+                json.dump(file_data, file, indent = 4)
+
         if self.capture:
             filename = 'C:\\Users\\ASUS\\Desktop\\atten\\image\\' + self.name_textbox.text() + '.jpg'
             cv2.imwrite(filename, img = frame)
+            write_json(student_name=self.name_textbox.text(), student_id=self.id_textbox.text())
             print('completely captured image..')
             self.capture = False
         
